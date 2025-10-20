@@ -1,0 +1,7 @@
+<resources>
+    <string name="notification_channel_calls">Screening chiamate</string>
+    <string name="notification_title_screening">Chiamata da %1$s</string>
+    <string name="notification_action_accept">Accetta</string>
+    <string name="notification_action_reject">Rifiuta</string>
+    <string name="notification_action_callback">Richiama</string>
+</resources>

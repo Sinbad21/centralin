@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Centralino Anti-Spam</string>
+    <string name="bot_greeting_it">Buongiorno, sono l’assistente di %1$s, con chi parlo e per quale motivo?</string>
+    <string name="bot_greeting_en">Hello, I am %1$s\'s assistant. Who is calling and what is the reason?</string>
+    <string name="bot_need_identification_it">Per parlare con %1$s serve identificarsi. Indichi nome e motivo della chiamata.</string>
+    <string name="notification_channel_calls">Screening chiamate</string>
+    <string name="notification_title_screening">Chiamata da %1$s</string>
+    <string name="notification_action_accept">Accetta</string>
+    <string name="notification_action_reject">Rifiuta</string>
+    <string name="notification_action_callback">Richiama</string>
+</resources>

@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Anti-Spam Switchboard</string>
+    <string name="bot_greeting_it">Hello, I am %1$s\'s assistant. Who is calling and why?</string>
+    <string name="bot_greeting_en">Hello, I am %1$s\'s assistant. Who is calling and what is the reason?</string>
+    <string name="bot_need_identification_it">To talk to %1$s you must identify yourself. State your name and reason.</string>
+    <string name="notification_channel_calls">Call screening</string>
+    <string name="notification_title_screening">Call from %1$s</string>
+    <string name="notification_action_accept">Accept</string>
+    <string name="notification_action_reject">Reject</string>
+    <string name="notification_action_callback">Call back</string>
+</resources>

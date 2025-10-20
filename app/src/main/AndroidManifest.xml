@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <application
+        android:name=".CentralinoApp"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:label="Centralino Anti-Spam"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+
+        <service
+            android:name="com.centralino.telephony.service.AppCallScreeningService"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name="com.centralino.antispam.permission.PermissionActivity"
+            android:exported="false" />
+
+        <receiver android:name="com.centralino.telephony.receiver.ActionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.centralino.ACCEPT_CALL" />
+                <action android:name="com.centralino.REJECT_CALL" />
+                <action android:name="com.centralino.CALL_BACK" />
+            </intent-filter>
+        </receiver>
+
+        <meta-data
+            android:name="android.telecom.role.CALL_SCREENING"
+            android:value="true"/>
+
+    </application>
+</manifest>

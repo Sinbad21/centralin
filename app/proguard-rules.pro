@@ -1,0 +1,10 @@
+-keep class * extends android.telecom.CallScreeningService
+-keep class com.centralino.telephony.service.AppCallScreeningService { *; }
+-keep class dagger.hilt.** { *; }
+-keep class com.centralino.**_Hilt* { *; }
+-keep class com.centralino.**_MembersInjector { *; }
+-keep class javax.inject.** { *; }
+-keep class dagger.** { *; }
+-keep class com.google.dagger.** { *; }
+-keep class androidx.room.** { *; }
+-dontwarn org.tensorflow.**
