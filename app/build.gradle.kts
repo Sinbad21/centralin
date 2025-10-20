@@ -30,6 +30,19 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        debug {
+            isMinifyEnabled = false
+        }
+    }
+
     flavorDimensions += "edition"
     productFlavors {
         create("free") {
