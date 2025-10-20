@@ -11,7 +11,8 @@ android {
 
     defaultConfig {
         applicationId = "com.centralino.antispam"
-        minSdk = 28
+        // IMPORTANTE: minSdk DEVE essere 29 per CallScreeningService
+        minSdk = 29
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -29,6 +30,25 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        debug {
+            isMinifyEnabled = false
+        }
+    }
+
+    packaging {
+        resources {
+            pickFirst("META-INF/*")
+        }
+    }
 
     flavorDimensions += "edition"
     productFlavors {
