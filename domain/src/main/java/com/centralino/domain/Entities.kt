@@ -53,16 +53,6 @@ data class SpamContext(
     val rules: List<Rule>
 )
 
-interface NotificationPublisher {
-    fun publishScreeningNotification(
-        callId: String,
-        number: String?,
-        displayName: String?,
-        summary: String?,
-        score: Double
-    )
-}
-
 interface TranscriptionRepository {
     suspend fun saveTranscript(callEventId: Long, text: String, summary: String?): Long
     suspend fun getTranscriptByEvent(callEventId: Long): Transcript?
