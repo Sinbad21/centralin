@@ -11,6 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.centralino.antispam"
+        // IMPORTANTE: minSdk DEVE essere 29 per CallScreeningService
         minSdk = 29
         targetSdk = 35
         versionCode = 1
