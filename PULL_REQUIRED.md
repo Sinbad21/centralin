@@ -1,6 +1,12 @@
 # ⚠️ GIT PULL RICHIESTO!
 
-## Se vedi l'errore: "minSdkVersion 28 cannot be smaller than version 29"
+## Se vedi uno di questi errori:
+
+- ❌ "minSdkVersion 28 cannot be smaller than version 29"
+- ❌ "Compilation error in :domain:compileDebugKotlin"
+- ❌ "Redeclaration: NotificationPublisher"
+- ❌ "Redeclaration: NotificationActions"
+- ❌ "Could not find method android()"
 
 Significa che NON hai ancora scaricato gli ultimi aggiornamenti dal repository.
 
@@ -31,9 +37,13 @@ git pull origin claude/start-mobile-app-011CUJyUVQaeqa2KTYSEQfyY
 
 ## ✅ Cosa è stato modificato:
 
-- `minSdk` aumentato da 28 a 29 (Android 10)
-- Aggiunta configurazione `packaging` per risolvere conflitti TensorFlow
-- Rimossi file duplicati che causavano errori di compilazione
+- ✅ `minSdk` aumentato da 28 a 29 (Android 10)
+- ✅ Aggiunta configurazione `packaging` per risolvere conflitti TensorFlow
+- ✅ Rimosso file `app/build.gradle` duplicato e incompleto
+- ✅ Rimosso `NotificationPublisher` duplicato da Entities.kt
+- ✅ Rimosso `NotificationPublisher.kt` ridondante
+- ✅ Rimosso `Notifier.kt` (implementazione vecchia non usata)
+- ✅ Rimosso `NotificationIntents.kt` (duplicato di NotificationActions)
 
 ---
 
