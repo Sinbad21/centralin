@@ -7,6 +7,8 @@
 - ❌ "Redeclaration: NotificationPublisher"
 - ❌ "Redeclaration: NotificationActions"
 - ❌ "Could not find method android()"
+- ❌ "No native library found for os.name=Windows" (Room KAPT error)
+- ❌ "Execution failed for task ':data:kaptDebugKotlin'"
 
 Significa che NON hai ancora scaricato gli ultimi aggiornamenti dal repository.
 
@@ -44,6 +46,8 @@ git pull origin claude/start-mobile-app-011CUJyUVQaeqa2KTYSEQfyY
 - ✅ Rimosso `NotificationPublisher.kt` ridondante
 - ✅ Rimosso `Notifier.kt` (implementazione vecchia non usata)
 - ✅ Rimosso `NotificationIntents.kt` (duplicato di NotificationActions)
+- ✅ Aggiunta dipendenza `sqlite-jdbc` per Room KAPT su Windows
+- ✅ Configurato Room annotation processor con argomenti corretti
 
 ---
 
