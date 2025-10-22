@@ -1,0 +1,796 @@
+// Prisma Schema for Chatbot Platform
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USERS & AUTHENTICATION
+// ============================================================================
+
+model User {
+  id               String        @id @default(cuid())
+  email            String        @unique
+  passwordHash     String
+  name             String?
+  company          String?
+  avatar           String?
+  accountType      AccountType   @default(INDIVIDUAL)
+  planId           String?
+
+  // Stripe
+  stripeCustomerId String?       @unique
+
+  // Preferences
+  language         String        @default("it")
+  timezone         String        @default("Europe/Rome")
+  notifications    Json?         // Email, push, SMS preferences
+
+  // Security
+  emailVerified    Boolean       @default(false)
+  twoFactorEnabled Boolean       @default(false)
+  twoFactorSecret  String?
+
+  // Credits
+  scrapingCredits  Int           @default(0)
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  lastLoginAt      DateTime?
+
+  // Relations
+  bots             Bot[]
+  teamMembers      TeamMember[]
+  subscriptions    Subscription[]
+  sessions         Session[]
+  scrapingCampaigns ScrapingCampaign[]
+  invoices         Invoice[]
+
+  @@index([email])
+  @@index([stripeCustomerId])
+}
+
+enum AccountType {
+  INDIVIDUAL
+  BUSINESS
+  ENTERPRISE
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  refreshToken String?  @unique
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  active       Boolean  @default(true)
+
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([refreshToken])
+}
+
+model TeamMember {
+  id        String     @id @default(cuid())
+  userId    String     // Owner
+  email     String
+  role      TeamRole
+  botAccess Json?      // Array of bot IDs with permissions
+  status    InviteStatus @default(PENDING)
+
+  invitedAt DateTime   @default(now())
+  acceptedAt DateTime?
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, email])
+  @@index([userId])
+  @@index([email])
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+  BOT_USER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+// ============================================================================
+// BOTS
+// ============================================================================
+
+model Bot {
+  id              String      @id @default(cuid())
+  userId          String
+  name            String
+  description     String?     @db.Text
+  category        BotCategory
+  language        String      @default("it")
+  avatar          String?
+  status          BotStatus   @default(DRAFT)
+
+  // Configuration
+  config          Json        // Personality, behavior, fallback
+  appearance      Json        // Widget colors, fonts, messages
+  integration     Json        // Embed settings, domains, CORS
+
+  // Stats
+  conversationCount Int       @default(0)
+  messageCount      Int       @default(0)
+  avgSentiment      Float?
+  avgResolutionRate Float?
+
+  // Marketplace
+  isPublic        Boolean     @default(false)
+  pricing         Json?       // Plans with limits and prices
+  revenue         Float       @default(0)
+  subscriberCount Int         @default(0)
+  rating          Float?
+  reviewCount     Int         @default(0)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  publishedAt     DateTime?
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations   Conversation[]
+  documents       Document[]
+  intents         Intent[]
+  integrations    Integration[]
+  subscriptions   BotSubscription[]
+  reviews         BotReview[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([isPublic])
+  @@index([category])
+}
+
+enum BotCategory {
+  CUSTOMER_SUPPORT
+  SALES
+  HR
+  EDUCATION
+  HEALTHCARE
+  ECOMMERCE
+  BOOKING
+  LEAD_GEN
+  CUSTOM
+}
+
+enum BotStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model BotReview {
+  id        String   @id @default(cuid())
+  botId     String
+  userId    String?  // Can be anonymous
+  rating    Int      // 1-5
+  comment   String?  @db.Text
+
+  createdAt DateTime @default(now())
+
+  bot       Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@index([botId])
+  @@index([rating])
+}
+
+// ============================================================================
+// KNOWLEDGE BASE
+// ============================================================================
+
+model Document {
+  id          String        @id @default(cuid())
+  botId       String
+  title       String
+  content     String        @db.Text
+  type        DocumentType
+  source      String?       // URL or file path
+  size        Int?          // Bytes
+  metadata    Json?
+
+  // Processing
+  status      ProcessStatus @default(PENDING)
+  chunks      Int           @default(0)
+  priority    Priority      @default(MEDIUM)
+
+  // Expiration (for time-sensitive content)
+  expiresAt   DateTime?
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  processedAt DateTime?
+
+  // Relations
+  bot         Bot           @relation(fields: [botId], references: [id], onDelete: Cascade)
+  embeddings  Embedding[]
+
+  @@index([botId])
+  @@index([status])
+  @@index([type])
+}
+
+enum DocumentType {
+  PDF
+  DOCX
+  TXT
+  CSV
+  JSON
+  WEB_PAGE
+  API
+  QA_PAIR
+}
+
+enum ProcessStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Embedding {
+  id          String   @id @default(cuid())
+  documentId  String
+  text        String   @db.Text
+  vectorId    String?  // ID in vector database (Pinecone/Weaviate)
+  metadata    Json?
+
+  createdAt   DateTime @default(now())
+
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([vectorId])
+}
+
+// ============================================================================
+// CONVERSATIONS
+// ============================================================================
+
+model Conversation {
+  id          String                  @id @default(cuid())
+  botId       String
+  userId      String?                 // Anonymous users = null
+  sessionId   String                  @unique
+
+  // Metadata
+  source      String?                 // website, whatsapp, telegram, etc
+  page        String?                 // Entry page URL
+  referrer    String?
+  userAgent   String?
+  ipAddress   String?
+  location    Json?                   // Country, city, coords
+
+  // Analytics
+  messageCount Int                    @default(0)
+  duration    Int?                    // seconds
+  sentiment   Float?                  // -1 to 1
+  emotion     String?                 // frustrated, happy, confused, etc
+  resolution  ConversationResolution?
+
+  // Data collected
+  userData    Json?                   // Form data (name, email, etc)
+
+  // Flags
+  flagged     Boolean                 @default(false)
+  flagReason  String?
+
+  startedAt   DateTime                @default(now())
+  endedAt     DateTime?
+
+  // Relations
+  bot         Bot                     @relation(fields: [botId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  feedback    ConversationFeedback?
+
+  @@index([botId])
+  @@index([sessionId])
+  @@index([startedAt])
+  @@index([resolution])
+}
+
+enum ConversationResolution {
+  RESOLVED
+  UNRESOLVED
+  ESCALATED
+  ABANDONED
+}
+
+model Message {
+  id              String          @id @default(cuid())
+  conversationId  String
+  sender          MessageSender
+  content         String          @db.Text
+  type            MessageType     @default(TEXT)
+  metadata        Json?           // Attachments, buttons, etc
+
+  // AI metadata
+  intent          String?
+  confidence      Float?
+  sentiment       Float?
+
+  // Processing
+  processingTime  Int?            // ms
+  model           String?         // gpt-4, claude, etc
+
+  createdAt       DateTime        @default(now())
+
+  conversation    Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@index([sender])
+}
+
+enum MessageSender {
+  USER
+  BOT
+  HUMAN
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  VOICE
+  CARD
+  CAROUSEL
+  FORM
+  QUICK_REPLY
+}
+
+model ConversationFeedback {
+  id              String       @id @default(cuid())
+  conversationId  String       @unique
+  rating          Int          // 1-5 stars
+  comment         String?      @db.Text
+  nps             Int?         // 0-10 Net Promoter Score
+
+  createdAt       DateTime     @default(now())
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([rating])
+  @@index([nps])
+}
+
+// ============================================================================
+// INTENTS
+// ============================================================================
+
+model Intent {
+  id          String   @id @default(cuid())
+  botId       String
+  name        String
+  description String?  @db.Text
+
+  // Training
+  examples    String[] // Training phrases
+  response    Json     // Response template(s)
+  actions     Json?    // Webhook, API calls, integrations
+  followUp    Json?    // Suggested follow-up questions
+
+  // Conditions
+  conditions  Json?    // Rules for when to trigger
+
+  // Stats
+  hitCount    Int      @default(0)
+  avgConfidence Float?
+  lastUsedAt  DateTime?
+
+  active      Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bot         Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@unique([botId, name])
+  @@index([botId])
+  @@index([active])
+}
+
+// ============================================================================
+// INTEGRATIONS
+// ============================================================================
+
+model Integration {
+  id          String           @id @default(cuid())
+  botId       String
+  type        IntegrationType
+  name        String
+
+  // Configuration
+  config      Json             // API keys, endpoints, etc
+  mapping     Json?            // Field mapping
+
+  // OAuth tokens (encrypted)
+  accessToken String?
+  refreshToken String?
+  expiresAt   DateTime?
+
+  active      Boolean          @default(true)
+
+  // Stats
+  lastSyncAt  DateTime?
+  errorCount  Int              @default(0)
+  lastError   String?          @db.Text
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  bot         Bot              @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@index([botId])
+  @@index([type])
+  @@index([active])
+}
+
+enum IntegrationType {
+  SHOPIFY
+  WOOCOMMERCE
+  STRIPE
+  PAYPAL
+  GOOGLE_CALENDAR
+  CALENDLY
+  SALESFORCE
+  HUBSPOT
+  PIPEDRIVE
+  ZENDESK
+  INTERCOM
+  FRESHDESK
+  MAILCHIMP
+  SENDGRID
+  SLACK
+  DISCORD
+  WHATSAPP
+  TELEGRAM
+  FACEBOOK
+  GOOGLE_SHEETS
+  AIRTABLE
+  ZAPIER
+  MAKE
+  WEBHOOK
+  CUSTOM_API
+}
+
+// ============================================================================
+// SCRAPING & LEAD GENERATION
+// ============================================================================
+
+model ScrapingCampaign {
+  id          String          @id @default(cuid())
+  userId      String
+  name        String
+  objective   String          @db.Text
+
+  // Filters
+  location    Json            // City, radius, coords
+  businessType String[]
+  filters     Json            // Size, rating, tech, etc
+
+  // Scraping config
+  sources     Json            // Google Maps, Yelp, etc
+  dataFields  Json            // Fields to extract
+
+  // Status
+  status      CampaignStatus  @default(PENDING)
+  progress    Int             @default(0)
+
+  // Results
+  leadsFound  Int             @default(0)
+  leadsQualified Int          @default(0)
+  creditsUsed Int             @default(0)
+
+  // Schedule
+  recurring   Boolean         @default(false)
+  schedule    String?         // cron expression
+
+  createdAt   DateTime        @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leads       Lead[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum CampaignStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+model Lead {
+  id          String       @id @default(cuid())
+  campaignId  String
+
+  // Business info
+  name        String
+  address     String?
+  phone       String?
+  email       String?
+  website     String?
+
+  // Additional data
+  rating      Float?
+  reviewCount Int?
+  photos      Json?
+  hours       Json?
+  services    String[]
+  pricing     Json?
+
+  // Social
+  socialLinks Json?
+
+  // Technology
+  technologies Json?       // CMS, analytics, etc
+
+  // Analysis
+  score       Int          // 0-100
+  insights    Json         // AI-generated insights
+  painPoints  String[]
+  opportunities String[]
+  competitorPresence Boolean @default(false)
+
+  // Status
+  status      LeadStatus   @default(NEW)
+  notes       String?      @db.Text
+  tags        String[]
+
+  // Outreach
+  emailSent   Boolean      @default(false)
+  emailOpenedAt DateTime?
+  emailClickedAt DateTime?
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  campaign    ScrapingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([score])
+  @@index([status])
+  @@index([email])
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  NOT_INTERESTED
+  CONVERTED
+  ARCHIVED
+}
+
+// ============================================================================
+// MARKETPLACE & BILLING
+// ============================================================================
+
+model BotSubscription {
+  id          String              @id @default(cuid())
+  userId      String
+  botId       String
+  planId      String              // "free", "basic", "premium", etc
+
+  // Stripe
+  stripeSubscriptionId String?  @unique
+  stripePriceId       String?
+
+  // Billing
+  amount      Float               @default(0)
+  currency    String              @default("EUR")
+  interval    String              @default("month") // month, year
+
+  // Status
+  status      SubscriptionStatus
+
+  // Period
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean     @default(false)
+
+  // Usage tracking
+  usage       Json?               // Conversations, messages used
+
+  createdAt   DateTime            @default(now())
+  canceledAt  DateTime?
+  endedAt     DateTime?
+
+  bot         Bot                 @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([botId])
+  @@index([status])
+  @@index([stripeSubscriptionId])
+}
+
+model Subscription {
+  id          String              @id @default(cuid())
+  userId      String
+  plan        SubscriptionPlan
+
+  // Stripe
+  stripeSubscriptionId String   @unique
+  stripePriceId       String
+
+  // Billing
+  amount      Float
+  currency    String              @default("EUR")
+
+  // Status
+  status      SubscriptionStatus
+
+  // Period
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+
+  createdAt   DateTime            @default(now())
+  canceledAt  DateTime?
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+}
+
+model Invoice {
+  id          String       @id @default(cuid())
+  userId      String
+
+  // Stripe
+  stripeInvoiceId String   @unique
+
+  // Amount
+  amount      Float
+  currency    String       @default("EUR")
+  tax         Float        @default(0)
+  total       Float
+
+  // Status
+  status      InvoiceStatus
+  paidAt      DateTime?
+
+  // PDF
+  pdfUrl      String?
+
+  createdAt   DateTime     @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([stripeInvoiceId])
+  @@index([status])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+// ============================================================================
+// ANALYTICS
+// ============================================================================
+
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  botId       String?
+  userId      String?
+  sessionId   String?
+
+  // Event
+  event       String   // conversation_started, message_sent, etc
+  properties  Json?
+
+  // Context
+  source      String?
+  page        String?
+  referrer    String?
+  userAgent   String?
+  ipAddress   String?
+  location    Json?
+
+  timestamp   DateTime @default(now())
+
+  @@index([botId, timestamp])
+  @@index([event])
+  @@index([sessionId])
+  @@index([timestamp])
+}
+
+// ============================================================================
+// SYSTEM
+// ============================================================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  action      String   // Created, updated, deleted, etc
+  entity      String   // Bot, user, conversation, etc
+  entityId    String?
+  changes     Json?    // Before/after
+
+  ipAddress   String?
+  userAgent   String?
+
+  timestamp   DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([timestamp])
+}
+
+model ApiKey {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  key         String   @unique
+
+  // Permissions
+  scopes      String[] // read:bots, write:conversations, etc
+
+  // Rate limiting
+  rateLimit   Int      @default(100) // requests per hour
+
+  active      Boolean  @default(true)
+  lastUsedAt  DateTime?
+
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+
+  @@index([key])
+  @@index([userId])
+}
