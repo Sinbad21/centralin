@@ -22,9 +22,34 @@ const createBotSchema = z.object({
     'CUSTOM',
   ]),
   language: z.string().default('it'),
+  status: z.enum(['DRAFT', 'ACTIVE', 'PAUSED', 'ARCHIVED']).optional(),
+  config: z.object({
+    personality: z.string().optional(),
+    tone: z.string().optional(),
+    systemInstructions: z.string().optional(),
+    fallbackMessage: z.string().optional(),
+  }).optional(),
+  appearance: z.object({
+    primaryColor: z.string().optional(),
+    position: z.string().optional(),
+    welcomeMessage: z.string().optional(),
+    avatar: z.string().optional(),
+    headerText: z.string().optional(),
+    placeholderText: z.string().optional(),
+  }).optional(),
+  integration: z.object({
+    allowedDomains: z.array(z.string()).optional(),
+  }).optional(),
 });
 
 const updateBotSchema = createBotSchema.partial();
+
+const createIntentSchema = z.object({
+  name: z.string().min(1).max(100),
+  examples: z.array(z.string()),
+  response: z.string(),
+  priority: z.number().min(1).max(10).default(5),
+});
 
 /**
  * GET /api/bots
@@ -73,25 +98,21 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
         description: data.description,
         category: data.category,
         language: data.language,
-        config: {
-          personality: {
-            formality: 50,
-            verbosity: 50,
-            friendliness: 70,
-          },
-          behavior: {
-            fallback: 'ask_clarification',
-            confidenceThreshold: 0.7,
-            contextMemory: 10,
-          },
+        status: data.status || 'DRAFT',
+        config: data.config || {
+          personality: 'friendly',
+          tone: 'professional',
+          systemInstructions: '',
+          fallbackMessage: 'Mi dispiace, non ho capito. Puoi riformulare la domanda?',
         },
-        appearance: {
-          primaryColor: '#3B82F6',
-          secondaryColor: '#8B5CF6',
+        appearance: data.appearance || {
+          primaryColor: '#6366f1',
           position: 'bottom-right',
           welcomeMessage: 'Ciao! Come posso aiutarti?',
+          headerText: 'Chat di supporto',
+          placeholderText: 'Scrivi un messaggio...',
         },
-        integration: {
+        integration: data.integration || {
           allowedDomains: [],
           cors: true,
         },
@@ -103,6 +124,9 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
         category: true,
         language: true,
         status: true,
+        config: true,
+        appearance: true,
+        integration: true,
         createdAt: true,
       },
     });
@@ -366,6 +390,42 @@ router.get('/:id/intents', requireAuth, async (req: Request, res: Response, next
     });
 
     res.json({ intents });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/bots/:id/intents
+ * Create bot intent (FAQ)
+ */
+router.post('/:id/intents', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const data = createIntentSchema.parse(req.body);
+
+    const bot = await prisma.bot.findFirst({
+      where: {
+        id,
+        userId: req.user!.userId,
+      },
+    });
+
+    if (!bot) {
+      throw new AppError('Bot non trovato', 404);
+    }
+
+    const intent = await prisma.intent.create({
+      data: {
+        botId: id,
+        name: data.name,
+        examples: data.examples,
+        response: data.response,
+        priority: data.priority,
+      },
+    });
+
+    res.status(201).json({ intent });
   } catch (error) {
     next(error);
   }

@@ -25,7 +25,9 @@
     "lucide-react": "^0.356.0",
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.1",
-    "class-variance-authority": "^0.7.0"
+    "class-variance-authority": "^0.7.0",
+    "@radix-ui/react-progress": "^1.0.3",
+    "@radix-ui/react-select": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
